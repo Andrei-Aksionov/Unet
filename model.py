@@ -1,83 +1,99 @@
+from typing import Union
+
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
 
 
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+class ConvBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: Union[int, tuple[int, int]] = 3,
+        stride: int = 1,
+        padding: Union[str, int] = "same",
+    ) -> None:
         super().__init__()
-        self.conv = nn.Sequential(
+        self.conv_block = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=False,
-            ),
-            nn.BatchNorm2d(num_features=out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(
-                in_channels=out_channels,
-                out_channels=out_channels,
-                kernel_size=3,
-                stride=1,
-                padding=1,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
                 bias=False,
             ),
             nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU(inplace=True),
         )
 
-    def forward(self, x):
-        return self.conv(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.conv_block(x)
+
+
+class DoubleConv(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        super().__init__()
+        self.double_conv = nn.Sequential(
+            ConvBlock(in_channels=in_channels, out_channels=out_channels),
+            ConvBlock(in_channels=out_channels, out_channels=out_channels),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.double_conv(x)
 
 
 class UNET(nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 1, features: list = [64, 128, 256, 512]) -> None:
+    def __init__(self, in_channels: int = 3, out_channels: int = 1, features: list[int] = [64, 128, 256, 512]) -> None:
         super().__init__()
-        self.downs = nn.ModuleList()
-        self.ups = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.contractions = nn.ModuleList()
+        self.upsamplings = nn.ModuleList()
+        self.expansions = nn.ModuleList()
+        self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Down part
+        # Contraction part
         for feature in features:
-            self.downs.append(DoubleConv(in_channels=in_channels, out_channels=feature))
+            self.contractions.append(DoubleConv(in_channels=in_channels, out_channels=feature))
             in_channels = feature
 
-        # Up part
+        # "Bottleneck" part
+        self.bottleneck = DoubleConv(in_channels=feature, out_channels=feature * 2)
+
+        # Expansion part
         for feature in features[::-1]:
-            self.ups.append(nn.ConvTranspose2d(in_channels=feature * 2, out_channels=feature, kernel_size=2, stride=2))
-            self.ups.append(
+            self.upsamplings.append(
+                nn.ConvTranspose2d(in_channels=feature * 2, out_channels=feature, kernel_size=2, stride=2)
+            )
+            self.expansions.append(
                 DoubleConv(in_channels=feature * 2, out_channels=feature),
             )
 
-        self.bottleneck = DoubleConv(in_channels=features[-1], out_channels=features[-1] * 2)
-        self.final_conv = nn.Conv2d(in_channels=features[0], out_channels=out_channels, kernel_size=1)
+        # Final part
+        self.final_conv = nn.Conv2d(in_channels=feature, out_channels=out_channels, kernel_size=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         skip_connections = []
 
-        for down in self.downs:
-            x = down(x)
+        for contraction in self.contractions:
+            x = contraction(x)
             skip_connections.append(x)
-            x = self.pool(x)
+            x = self.pooling(x)
 
         x = self.bottleneck(x)
-        skip_connections = skip_connections[::-1]
 
-        for idx in range(0, len(self.ups), 2):
-            x = self.ups[idx](x)
-            skip_connection = skip_connections[idx // 2]
+        for upsampling, expansion in zip(self.upsamplings, self.expansions):
+            x = upsampling(x)
+            skip_connection = skip_connections.pop()
 
-			# tensor with odd size (e.g. 161*161) after maxpool will have
-			# even size (80*80), so concatination might fail. For that reason
-			# resize is performed
+            # tensor with odd size (e.g. 161*161) after maxpool will have
+            # even size (80*80), so concatination might fail. For that reason
+            # resize is performed
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
 
-            concat_skip = torch.cat((skip_connection, x), dim=1)
-            x = self.ups[idx + 1](concat_skip)
+            x = torch.cat((skip_connection, x), dim=1)
+            x = expansion(x)
 
         return self.final_conv(x)
 
