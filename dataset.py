@@ -15,7 +15,7 @@ class SegmentationDataset(Dataset):
     def __len__(self) -> int:
         return len(self.image_filenames)
 
-    def __getitem__(self, index: int) -> tuple[np.np.ndarray, np.np.ndarray]:
+    def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray]:
         image_path = os.path.join(self.images_dir, self.image_filenames[index])
         # for dataset I used karvana dataset from kaggle competition. In this dataset
         # masks have the same name as images only with _mask postfix and different extension
@@ -29,6 +29,6 @@ class SegmentationDataset(Dataset):
         if self.transform:
             augmentations = self.transform(image=image, mask=mask)
             image = augmentations["image"]
-            mask = augmentations["maks"]
+            mask = augmentations["mask"]
 
         return image, mask
