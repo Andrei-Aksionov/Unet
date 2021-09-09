@@ -3,6 +3,9 @@ authors = ["Andrei Aksionau <aksionau.andrei@gmail.com>"]
 description = "U-Net implementation with PyTorch"
 name = "unet"
 version = "0.1.0"
+packages = [
+    { include = "src" },
+]
 
 [tool.poetry.dependencies]
 Pillow = "^8.3.2"
@@ -19,4 +22,4 @@ black = "^21.8b0"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0", "pip>=21.0"]

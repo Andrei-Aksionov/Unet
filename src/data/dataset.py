@@ -21,9 +21,7 @@ class SegmentationDataset(Dataset):
         # masks have the same name as images only with _mask postfix and different extension
         mask_path = os.path.join(self.masks_dir, self.image_filenames[index].replace(".jpg", "_mask.gif"))
         image = np.array(Image.open(image_path))
-        mask = np.array(Image.open(mask_path).convert("L"))
-        # as a double check binarizing mask
-        mask = np.where(mask < 0.5, 0, 1)
+        mask = np.array(Image.open(mask_path))
 
         # for augmentation `albumentations` is used
         if self.transform:

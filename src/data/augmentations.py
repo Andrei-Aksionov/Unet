@@ -1,7 +1,7 @@
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-import hyperparameters as hp
+import src.config.hyperparameters as hp
 
 train_transform = A.Compose(
     [

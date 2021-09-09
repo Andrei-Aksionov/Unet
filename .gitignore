@@ -129,5 +129,13 @@ dmypy.json
 .pyre/
 
 # Dataset
-data/
-dataset/
+/data
+/dataset
+
+# Models
+/model
+/models
+
+# VSCODE
+.vscode
+.DS_STORE

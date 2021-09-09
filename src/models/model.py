@@ -3,6 +3,7 @@ from typing import Union
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
+from src.config.hyperparameters import UNET_FEATURES
 
 
 class ConvBlock(nn.Module):
@@ -32,7 +33,7 @@ class ConvBlock(nn.Module):
         return self.conv_block(x)
 
 
-class DoubleConv(nn.Module):
+class UNETConvBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.double_conv = nn.Sequential(
@@ -45,7 +46,7 @@ class DoubleConv(nn.Module):
 
 
 class UNET(nn.Module):
-    def __init__(self, in_channels: int = 3, out_channels: int = 1, features: list[int] = [64, 128, 256, 512]) -> None:
+    def __init__(self, features: list[int], in_channels: int = 3, out_channels: int = 1) -> None:
         super().__init__()
         self.contractions = nn.ModuleList()
         self.upsamplings = nn.ModuleList()
@@ -54,11 +55,11 @@ class UNET(nn.Module):
 
         # Contraction part
         for feature in features:
-            self.contractions.append(DoubleConv(in_channels=in_channels, out_channels=feature))
+            self.contractions.append(UNETConvBlock(in_channels=in_channels, out_channels=feature))
             in_channels = feature
 
         # "Bottleneck" part
-        self.bottleneck = DoubleConv(in_channels=feature, out_channels=feature * 2)
+        self.bottleneck = UNETConvBlock(in_channels=feature, out_channels=feature * 2)
 
         # Expansion part
         for feature in features[::-1]:
@@ -66,7 +67,7 @@ class UNET(nn.Module):
                 nn.ConvTranspose2d(in_channels=feature * 2, out_channels=feature, kernel_size=2, stride=2)
             )
             self.expansions.append(
-                DoubleConv(in_channels=feature * 2, out_channels=feature),
+                UNETConvBlock(in_channels=feature * 2, out_channels=feature),
             )
 
         # Final part
@@ -86,8 +87,8 @@ class UNET(nn.Module):
             x = upsampling(x)
             skip_connection = skip_connections.pop()
 
-            # tensor with odd size (e.g. 161*161) after maxpool will have
-            # even size (80*80), so concatination might fail. For that reason
+            # tensor with odd size (e.g. 97*97) after maxpool will have
+            # even size (48*48), so concatination might fail. For that reason
             # resize is performed
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
@@ -98,12 +99,12 @@ class UNET(nn.Module):
         return self.final_conv(x)
 
 
-def test():
-    x = torch.randn((3, 1, 161, 161))
-    model = UNET(in_channels=1, out_channels=1)
+def test_architecture():
+    x = torch.randn((1, 1, 388, 388))
+    model = UNET(features=UNET_FEATURES, in_channels=1, out_channels=1)
     preds = model(x)
     assert preds.shape == x.shape
 
 
 if __name__ == "__main__":
-    test()
+    test_architecture()
