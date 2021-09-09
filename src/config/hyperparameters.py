@@ -5,8 +5,8 @@ UNET_FEATURES = [64, 128, 256, 512]
 LEARNING_RATE = 1e-4
 BATCH_SIZE = 16
 NUM_EPOCHS = 3
-NUM_WORKERS = 2
-PIN_MEMORY = True
+NUM_WORKERS = 6
+PIN_MEMORY = False
 LOAD_MODEL = False
 
 # image transofmation parameters

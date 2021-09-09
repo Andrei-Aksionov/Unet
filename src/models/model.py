@@ -99,7 +99,7 @@ class UNET(nn.Module):
         return self.final_conv(x)
 
 
-def test_architecture():
+def test_architecture() -> None:
     x = torch.randn((1, 1, 388, 388))
     model = UNET(features=UNET_FEATURES, in_channels=1, out_channels=1)
     preds = model(x)

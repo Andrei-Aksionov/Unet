@@ -1,20 +1,17 @@
 import src.config.hyperparameters as hp
 import torch
 import torch.nn as nn
-from albumentations import augmentations
 from src.data.augmentations import train_transform, val_transform
-from src.utils.utils import (check_accuracy, get_loaders, load_checkpoint,
-                             save_checkpoint, save_predictions_as_imgs)
-from torch._C import device
-from torch.serialization import load
+from src.utils.utils import check_accuracy_dice_score, get_loaders, save_checkpoint
 from tqdm import tqdm
 
+from torch.utils.data import DataLoader
 from model import UNET
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def training(loader, model, optimizer, loss_function, scaler):
+def training(loader: DataLoader, model: nn.Module, optimizer: torch.optim.Optimizer, loss_function, scaler) -> None:
     loop = tqdm(loader)
 
     for _, (data, targets) in enumerate(loop):
@@ -38,7 +35,7 @@ def training(loader, model, optimizer, loss_function, scaler):
         loop.set_postfix(loss=loss.item())
 
 
-def main():
+def main() -> None:
     model = UNET(features=hp.UNET_FEATURES, in_channels=3, out_channels=1).to(DEVICE)
     # TODO: Tasks pending completion -@andreiaksionov at 9/4/2021, 7:00:56 PM
     # change to cross entropy loss
@@ -57,23 +54,23 @@ def main():
         hp.PIN_MEMORY,
     )
 
-    # TODO: Tasks pending completion -@andreiaksionov at 9/4/2021, 7:31:51 PM
-    # Implement evaluation function
-
     scaler = torch.cuda.amp.GradScaler()
+    best_accuracy = float("-inf")
     for idx in range(hp.NUM_EPOCHS):
         print(f"Starting epoch: {idx}")
         training(train_loader, model, optimizer, loss_function, scaler)
 
-        # saving model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-        }
-        save_checkpoint(state=checkpoint, filename=hp.CHECKPOINT_PATH)
-
         # checking accuracy
-        check_accuracy(val_loader, model, device=DEVICE)
+        accuracy, dice_score = check_accuracy_dice_score(val_loader, model, device=DEVICE)
+        print(f"Acc: {accuracy*100:.2f}")
+        print(f"Dice score: {dice_score*100:.2f}")
+        if accuracy > best_accuracy:
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+            save_checkpoint(state=checkpoint, filename=hp.CHECKPOINT_PATH)
+            best_accuracy = accuracy
 
 
 if __name__ == "__main__":
