@@ -1,7 +1,6 @@
 import os
 
 import torch
-import torchvision
 from src.config.hyperparameters import CHECKPOINT_FOLDER
 from src.data.dataset import SegmentationDataset
 from torch.utils.data import DataLoader

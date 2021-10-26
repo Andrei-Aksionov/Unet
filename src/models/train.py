@@ -3,13 +3,10 @@ import torch
 import torch.nn as nn
 from albumentations import augmentations
 from src.data.augmentations import train_transform, val_transform
-from src.utils.utils import (check_accuracy, get_loaders, load_checkpoint,
-                             save_checkpoint, save_predictions_as_imgs)
-from torch._C import device
-from torch.serialization import load
+from src.utils.utils import check_accuracy, get_loaders, load_checkpoint, save_checkpoint
 from tqdm import tqdm
 
-from model import UNET
+from model_resnet import UNET
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -39,7 +36,7 @@ def training(loader, model, optimizer, loss_function, scaler):
 
 
 def main():
-    model = UNET(features=hp.UNET_FEATURES, in_channels=3, out_channels=1).to(DEVICE)
+    model = UNET(features=hp.UNET_RESNET_FEATURES, in_channels=3, out_channels=1).to(DEVICE)
     # TODO: Tasks pending completion -@andreiaksionov at 9/4/2021, 7:00:56 PM
     # change to cross entropy loss
     loss_function = nn.BCEWithLogitsLoss()

@@ -3,7 +3,7 @@ from typing import Union
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
-from src.config.hyperparameters import UNET_FEATURES
+from src.config.hyperparameters import UNET_RESNET_FEATURES
 
 
 class ConvBlock(nn.Module):
@@ -34,23 +34,31 @@ class ConvBlock(nn.Module):
 
 
 class ResNetBlock(nn.Module):
-    def __init__(self, in_channels: int, reduction_factor: int = 2) -> None:
+    def __init__(self, in_channels: int, reduction_factor: int = 4, num_repeats: int = 1) -> None:
         super().__init__()
-        self.resnet_block = nn.Sequential(
-            ConvBlock(in_channels=in_channels, out_channels=in_channels // reduction_factor, kernel_size=1),
-            ConvBlock(in_channels=in_channels // reduction_factor, out_channels=in_channels),
-        )
+        self.interim_channels = in_channels // reduction_factor
+        layers = []
+        for _ in range(num_repeats):
+            layers.extend(
+                [
+                    ConvBlock(in_channels=in_channels, out_channels=self.interim_channels, kernel_size=1),
+                    ConvBlock(in_channels=self.interim_channels, out_channels=self.interim_channels),
+                    ConvBlock(in_channels=self.interim_channels, out_channels=in_channels, kernel_size=1),
+                ]
+            )
+
+        self.resnet_block = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x + self.resnet_block(x)
 
 
 class UNETConvBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, num_repeats: int = 1) -> None:
         super().__init__()
         self.unet_conv_block = nn.Sequential(
             ConvBlock(in_channels=in_channels, out_channels=out_channels),
-            ResNetBlock(in_channels=out_channels),
+            ResNetBlock(in_channels=out_channels, num_repeats=num_repeats),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -58,7 +66,7 @@ class UNETConvBlock(nn.Module):
 
 
 class UNET(nn.Module):
-    def __init__(self, features: list[int], in_channels: int = 3, out_channels: int = 1) -> None:
+    def __init__(self, features: list[tuple[int, int]], in_channels: int = 3, out_channels: int = 1) -> None:
         super().__init__()
         self.contractions = nn.ModuleList()
         self.upsamplings = nn.ModuleList()
@@ -66,20 +74,20 @@ class UNET(nn.Module):
         self.pooling = nn.MaxPool2d(kernel_size=2, stride=2)
 
         # Contraction part
-        for feature in features:
-            self.contractions.append(UNETConvBlock(in_channels=in_channels, out_channels=feature))
+        for feature, num_repeats in features:
+            self.contractions.append(UNETConvBlock(in_channels=in_channels, out_channels=feature, num_repeats=num_repeats))
             in_channels = feature
 
         # "Bottleneck" part
         self.bottleneck = UNETConvBlock(in_channels=feature, out_channels=feature * 2)
 
         # Expansion part
-        for feature in features[::-1]:
+        for feature, num_repeats in features[::-1]:
             self.upsamplings.append(
                 nn.ConvTranspose2d(in_channels=feature * 2, out_channels=feature, kernel_size=2, stride=2)
             )
             self.expansions.append(
-                UNETConvBlock(in_channels=feature * 2, out_channels=feature),
+                UNETConvBlock(in_channels=feature * 2, out_channels=feature, num_repeats=num_repeats),
             )
 
         # Final part
@@ -113,7 +121,7 @@ class UNET(nn.Module):
 
 def test_architecture():
     x = torch.randn((1, 1, 388, 388))
-    model = UNET(features=UNET_FEATURES, in_channels=1, out_channels=1)
+    model = UNET(features=UNET_RESNET_FEATURES, in_channels=1, out_channels=1)
     preds = model(x)
     assert preds.shape == x.shape
 

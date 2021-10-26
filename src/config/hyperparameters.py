@@ -1,5 +1,7 @@
 # architecture of UNET
 UNET_FEATURES = [64, 128, 256, 512]
+UNET_RESNET_FEATURES = [(64, 3), (128, 3), (256, 3), (512, 4)] # (num_channels, num_repeats)
+
 
 # training hyperparameters
 LEARNING_RATE = 1e-4
