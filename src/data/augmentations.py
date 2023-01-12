@@ -14,7 +14,7 @@ train_transform = A.Compose(
             std=[1.0, 1.0, 1.0],
         ),
         ToTensorV2(),
-    ]
+    ],
 )
 
 val_transform = A.Compose(
@@ -25,5 +25,5 @@ val_transform = A.Compose(
             std=[1.0, 1.0, 1.0],
         ),
         ToTensorV2(),
-    ]
+    ],
 )
