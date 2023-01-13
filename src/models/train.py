@@ -42,9 +42,9 @@ def training(
         loss = loss_function(predictions, targets)
 
         # backpropagation pass
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        optimizer.zero_grad()
 
         # printing loss value in the tqdm loop
         loop.set_postfix(loss=loss.item())

@@ -30,7 +30,7 @@ class SegmentationDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray]:
         image_path = os.path.join(self.images_dir, self.image_filenames[index])
-        # for dataset I used 'Karvana' dataset from kaggle competition. In this dataset
+        # for dataset I used 'Carvana' dataset from kaggle competition. In this dataset
         # masks have the same name as images only with _mask postfix and different extension
         mask_path = os.path.join(self.masks_dir, self.image_filenames[index].replace(".jpg", "_mask.gif"))
         image = np.array(Image.open(image_path))
