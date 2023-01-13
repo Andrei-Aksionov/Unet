@@ -1,4 +1,4 @@
-<h1 align="center">Welcome U-Net implementation in PyTorch</h1>
+<h1 align="center">Welcome to U-Net implementation in PyTorch</h1>
 
 <p align=center><img src="references/UNET_architecture.png"></p>
 
