@@ -2,36 +2,83 @@ import os
 
 import albumentations as A
 import torch
+from loguru import logger
+from torch.utils.data import DataLoader
+
 from src.config.hyperparameters import CHECKPOINT_FOLDER
 from src.data.dataset import SegmentationDataset
-from torch.utils.data import DataLoader
 
 
 def save_checkpoint(state: dict, filename: str) -> None:
-    print("Saving checkpoint")
+    """Save current state of the model with parameters.
+
+    Parameters
+    ----------
+    state : dict
+        parameters of the model represented as a dict
+    filename : str
+        name of the file in which model will be saved
+    """
+    logger.debug("Saving checkpoint")
     os.makedirs(CHECKPOINT_FOLDER, exist_ok=True)
     torch.save(state, filename)
 
 
 def load_checkpoint(checkpoint: dict, model: torch.nn.Module) -> None:
-    print("Loading checkpoint")
+    """Load saved state of the model with parameters.
+
+    Parameters
+    ----------
+    checkpoint : dict
+        dictionary with value for each model's parameter
+    model : torch.nn.Module
+        model in which saved parameter values will be loaded
+    """
+    logger.debug("Loading checkpoint")
     model.load_state_dict(checkpoint["state_dict"])
 
 
 def get_loaders(
     train_dir: str,
-    train_maskdir: str,
+    train_mask_dir: str,
     val_dir: str,
-    val_maskdir: str,
+    val_mask_dir: str,
     batch_size: int,
     train_transform: A.Compose,
     val_transform: A.Compose,
     num_workers: int,
-    pin_memory: bool,
 ) -> tuple[DataLoader, DataLoader]:
+    """Return train and validation data loaders.
+
+    Parameters
+    ----------
+    train_dir : str
+        path to train images
+    train_mask_dir : str
+        path to train masks
+    val_dir : str
+        path to validation images
+    val_mask_dir : str
+        path to validation masks
+    batch_size : int
+        the size of the batch
+    train_transform : A.Compose
+        set of albumentations transformations that will be applied
+        to images and masks from training set
+    val_transform : A.Compose
+        set of albumentations transformations that will be applied
+        to images and masks from validation set
+    num_workers : int
+        number of parallel workers
+
+    Returns
+    -------
+    tuple[DataLoader, DataLoader]
+        train and validation data loaders
+    """
     train_ds = SegmentationDataset(
         images_dir=train_dir,
-        masks_dir=train_maskdir,
+        masks_dir=train_mask_dir,
         transform=train_transform,
     )
 
@@ -39,13 +86,12 @@ def get_loaders(
         train_ds,
         batch_size=batch_size,
         num_workers=num_workers,
-        pin_memory=pin_memory,
         shuffle=True,
     )
 
     val_ds = SegmentationDataset(
         images_dir=val_dir,
-        masks_dir=val_maskdir,
+        masks_dir=val_mask_dir,
         transform=val_transform,
     )
 
@@ -53,7 +99,6 @@ def get_loaders(
         val_ds,
         batch_size=batch_size,
         num_workers=num_workers,
-        pin_memory=pin_memory,
         shuffle=False,
     )
 
@@ -61,6 +106,22 @@ def get_loaders(
 
 
 def check_accuracy_dice_score(loader: DataLoader, model: torch.nn.Module, device: str = "cuda") -> tuple[float, float]:
+    """Returns accuracy and dice score.
+
+    Parameters
+    ----------
+    loader : DataLoader
+        loader with images and masks
+    model : torch.nn.Module
+        U-Net model
+    device : str, optional
+        on which device model and data a stored, by default "cuda"
+
+    Returns
+    -------
+    tuple[float, float]
+        accuracy and dice scores
+    """
     num_correct = 0
     num_pixels = 0
     dice_score = 0
